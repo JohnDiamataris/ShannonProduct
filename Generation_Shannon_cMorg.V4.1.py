@@ -19,7 +19,6 @@ import random
 import csv
 import numpy as np
 from scipy.optimize import minimize
-from scipy import stats
 from PyQt5.QtGui import QPixmap
 
 
@@ -371,16 +370,16 @@ class Ui_MainWindow(object):
         for row, i in enumerate(entries):
             i[0]=[k.replace(',','') for k in i[0]]
             i[0]=','.join([str(k) for k in i[0]])
-            # if not i[0] in x.Genotypes.keys():
-            #     x.Genotypes[i[0]]=None
+            if not i[0] in x.Genotypes.keys():
+                x.Genotypes[i[0]]=None
             for col,j in enumerate(i):
                 item1 = QtWidgets.QTableWidgetItem(j)
                 self.GenoTable.setItem(row,col,item1)
         for row, i in enumerate(entries2):
             i[0]=[k.replace(',','') for k in i[0]]
             i[0]=','.join([str(k) for k in i[0]])
-            # if not i[0] in x.Genotypes2.keys():
-            #     x.Genotypes2[i[0]]=None
+            if not i[0] in x.Genotypes2.keys():
+                x.Genotypes2[i[0]]=None
             for col,j in enumerate(i):
                 item2= QtWidgets.QTableWidgetItem(j)
                 self.GenoTable_2.setItem(row,col,item2)
@@ -427,7 +426,6 @@ class Ui_MainWindow(object):
                 for col in range(self.GenoTable_6.columnCount()):
                     rowlist.append(self.GenoTable_6.item(row,col).text().strip("' "))
                     rowlist[0]=rowlist[0].replace(' and ','')
-                x.mapunits.append([rowlist[0],float(rowlist[1])])
                 allrowslist.append([rowlist[0],float(rowlist[1])*2])
                 # if not rowlist[0] in allrowsdict.keys():
                 #     allrowsdict[rowlist[0]]=rowlist[1]
@@ -504,26 +502,16 @@ class Ui_MainWindow(object):
                     x.AllTogether_dict[key[0]]=[key[1]]
             del OffspringShannon_dict
             counter += 1
-        MeanList=[]#'entries':['gentype','mean','conf interv', 'shann pr']
+        MeanList=[]#'entries':['mean','std','var','sem']
         
         for key in x.AllTogether_dict.items():
             
-            #std_deviation=(np.std((key[1]),ddof=1))#*OfSpsteps
-            #variance=std_deviation**2
-            #std_error_mean=std_deviation/np.sqrt(len(key[1]))
-            logkey1=[np.log(a) for a in key[1]]
-            logmean=np.mean(logkey1)
-            logvar=np.var(logkey1)
-            MV=np.mean(key[1])/self.SampleSizeSpinBox_2.value()
-            ## naive method for confidence intervals 
-            lowCI=logmean+logvar/2-2.02*np.sqrt(logvar/self.SampleSizeSpinBox.value())
-            highCI=logmean+logvar/2+2.02*np.sqrt(logvar/self.SampleSizeSpinBox.value())
-            #lowCI=logmean+logvar/2-1.96*np.sqrt(logvar/self.SampleSizeSpinBox.value()+logvar**2/2*(self.SampleSizeSpinBox.value()-1))
-            #highCI=logmean+logvar/2+1.96*np.sqrt(logvar/self.SampleSizeSpinBox.value()+logvar**2/2*(self.SampleSizeSpinBox.value()-1))
-            
-            CI=[np.exp(lowCI)/self.SampleSizeSpinBox_2.value(),np.exp(highCI)/self.SampleSizeSpinBox_2.value()]
-            MeanList.append([key[0],'{0:.4f}'.format(MV),'{0:.4f}  ~  {1:.4f}'.format(CI[0],CI[1])])
-            #MeanList.append([key[0],'{0:.4f}'.format(MV),'{0:.2f}'.format(std_deviation),'{0:.2f}'.format(variance),'{0:.2f}'.format(std_error_mean)])
+            std_deviation=(np.std((key[1]),ddof=1))#*OfSpsteps
+            variance=std_deviation**2
+            std_error_mean=std_deviation/np.sqrt(len(key[1]))
+
+            MV=sum(key[1])/(self.SampleSizeSpinBox_2.value()*self.SampleSizeSpinBox.value())
+            MeanList.append([key[0],'{0:.4f}'.format(MV),'{0:.2f}'.format(std_deviation),'{0:.2f}'.format(variance),'{0:.2f}'.format(std_error_mean)])
         x.meanList=MeanList
         self.copyParent_2.setEnabled(True)
         self.copyParent_6.setEnabled(True)
@@ -535,9 +523,8 @@ class Ui_MainWindow(object):
         meanlist=Mlist
         
         self.tableWidget.setRowCount(len(meanlist))
-        self.tableWidget.setColumnCount(4)
-        self.tableWidget.setHorizontalHeaderLabels(['ofsprg','Mean','confid. intervals','ShanProd'])
-        #self.tableWidget.setHorizontalHeaderLabels(['ofsprg','Mean','stdev','var','SEMean','ShanProd'])
+        self.tableWidget.setColumnCount(6)
+        self.tableWidget.setHorizontalHeaderLabels(['ofsprg','Mean','stdev','var','SEMean','ShanProd'])
         for row, i in enumerate(meanlist):
             for col,j in enumerate(i):
                 item = QtWidgets.QTableWidgetItem(str(j))
@@ -601,7 +588,6 @@ class Ui_MainWindow(object):
         else: 
             self.label_17.setText("Please fill in Shannon probabilities")
             self.label_17.setStyleSheet("color: red")
-   
     def make_shannon_prob(self):
         itemlist=[]
         points=len(x.GenoData.split(';'))-1
@@ -627,20 +613,16 @@ class Ui_MainWindow(object):
             for col in range(self.GenoTable.columnCount()):
                 rowlist.append(self.GenoTable.item(row,col).text().strip("' "))
             x.Samplefreq[rowlist[0]]=int(rowlist[1])/float(SampleSize)
-            x.ShanParents1[rowlist[0]]=int(rowlist[1]) 
-            if self.GenoTable_2.rowCount()==0:
-                x.Samplefreq2[rowlist[0]]=int(rowlist[1])/SampleSize
-                x.ShanParents2[rowlist[0]]=int(rowlist[1])
-        if self.GenoTable_2.rowCount()!=0:
-            SampleSize2=0
-            for row in range(self.GenoTable_2.rowCount()):
-                SampleSize2+=int(self.GenoTable_2.item(row,1).text())
-            for row in range(self.GenoTable_2.rowCount()):
-                rowlist2=[]
-                for col in range(self.GenoTable_2.columnCount()):
-                    rowlist2.append(self.GenoTable_2.item(row,col).text().strip("' "))
-                x.Samplefreq2[rowlist2[0]]=int(rowlist2[1])/SampleSize2
-                x.ShanParents2[rowlist2[0]]=int(rowlist2[1])
+            x.ShanParents1[rowlist[0]]=int(rowlist[1])/float(SampleSize) 
+        SampleSize2=0
+        for row in range(self.GenoTable_2.rowCount()):
+            SampleSize2+=int(self.GenoTable_2.item(row,1).text())
+        for row in range(self.GenoTable_2.rowCount()):
+            rowlist2=[]
+            for col in range(self.GenoTable_2.columnCount()):
+                rowlist2.append(self.GenoTable_2.item(row,col).text().strip("' "))
+            x.Samplefreq2[rowlist2[0]]=int(rowlist2[1])/SampleSize2
+            x.ShanParents2[rowlist2[0]]=int(rowlist2[1])/SampleSize2
 
     def chooseParents(self):
         freq_val_list=list(x.Samplefreq.values())
@@ -676,7 +658,7 @@ class Ui_MainWindow(object):
         for b in Genot:
             if tuple(b) not in Genodict1.keys():
                 pops=','.join([i.replace(',','') for i in b])
-                Genodict1[tuple(b)]=x.Samplefreq[pops]
+                Genodict1[tuple(b)]=x.ShanParents1[pops]
         GeList=list(Genodict1.keys())
         AllKeylist=[]
         for n,j in enumerate(GeList[:-2]):
@@ -725,7 +707,7 @@ class Ui_MainWindow(object):
         for b in Genot2:
             if tuple(b) not in Genodict2.keys():
                 pops=','.join([i.replace(',','') for i in b])
-                Genodict2[tuple(b)]=x.Samplefreq2[pops]
+                Genodict2[tuple(b)]=x.ShanParents2[pops]
         GeList2=list(Genodict2.keys())
         AllKeylist2=[]
         for n,j in enumerate(GeList2[:-2]):
@@ -797,7 +779,7 @@ class Ui_MainWindow(object):
                             PeeSum+=G[v]
                         Elem.append(PeeSum*prob_pointsDict[itm[0]])
                     AllElem.append(sum(Elem))
-                ShannonProduct += 0.5*np.product(AllElem)
+                ShannonProduct += 0.5*np.prod(AllElem)
             if of not in ShannonProductDict.keys():
                 ShannonProductDict[of] = ShannonProduct 
             else:
@@ -805,33 +787,11 @@ class Ui_MainWindow(object):
         for i in ShannonProductDict.keys():
             if i in offspring:
                 shp=ShannonProductDict[i]
-                x.meanList[offspring.index(i)].append('{0:.4f}'.format(shp))
+                x.meanList[offspring.index(i)].append(shp)
             else:
-                x.meanList.append([i,'-','-','-','-','{0:.4f}'.format(shp)])
+                x.meanList.append([i,'-','-','-','-',shp])
                 pass
         self.make_stats(x.meanList)
-        results = os.path.dirname(os.path.abspath(__file__))+'\\Results'
-        if not os.path.exists(results):
-            os.mkdir(results)
-        with open (results+'\\results.csv','w') as f01:
-            #f01.write('ofsprg,Mean,stdev,var,SEMean,ShanProd')
-            w = csv.writer(f01)
-            w.writerow( ['genes','mapunits'] )
-            w.writerows( x.mapunits )
-            w.writerow( ['joint prob','shanon prob'] )
-            w.writerows( prob_pointsDict.items())
-            w.writerow( ['ofsprg','Mean','stdev','var','SEMean','ShanProd'] )
-            w.writerows( x.meanList )
-        with open (results+'\\Parent1.csv','w') as f02:
-            #f02.write('Genotype ,  # indivuduals')
-            w1 = csv.writer(f02)
-            w1.writerow(['Genotype' ,  '# indivuduals'])
-            w1.writerows(x.ShanParents1.items())
-        with open (results+'\\Parent2.csv','w') as f03:
-            #f03.write('Genotype ,  # indivuduals')
-            w2 = csv.writer(f03)
-            w2.writerow(['Genotype' ,  '# indivuduals'])
-            w2.writerows(x.ShanParents2.items())
         self.copyParent_5.setEnabled(True)
         self.copyParent_2.setEnabled(False)
         self.Fit.setEnabled(False)
@@ -852,7 +812,7 @@ class Ui_MainWindow(object):
         for b in Genot:
             if tuple(b) not in Genodict1.keys():
                 pops=','.join([i.replace(',','') for i in b])
-                Genodict1[tuple(b)]=x.Samplefreq[pops]
+                Genodict1[tuple(b)]=x.ShanParents1[pops]
         GeList=list(Genodict1.keys())
         AllKeylist=[]
         for n,j in enumerate(GeList[:-2]):
@@ -891,7 +851,7 @@ class Ui_MainWindow(object):
         for b in Genot2:
             if tuple(b) not in Genodict2.keys():
                 pops=','.join([i.replace(',','') for i in b])
-                Genodict2[tuple(b)]=x.Samplefreq2[pops]
+                Genodict2[tuple(b)]=x.ShanParents2[pops]
         GeList2=list(Genodict2.keys())
         AllKeylist2=[]
         for n,j in enumerate(GeList2[:-2]):
@@ -1155,7 +1115,7 @@ class Ui_MainWindow(object):
             plt.bar(index, Shannon, bar_width,
             alpha=opacity,
             color='b',
-            label='Observations')
+            label='Shannon')
 
             plt.bar(index + bar_width, Binomial, bar_width,
             alpha=opacity,
@@ -1254,7 +1214,6 @@ class Controller():
         self.Genotypes2={}
         self.checkbox=''
         self.ShanProb={}
-        self.mapunits=[]
         self.CrossProb={}
         self.ShanParents1={}
         self.ShanParents2={}
